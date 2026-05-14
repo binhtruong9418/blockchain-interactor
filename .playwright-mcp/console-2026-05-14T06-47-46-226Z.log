@@ -1,0 +1,4 @@
+[     494ms] Unexpected string
+[     494ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/:0
+[     494ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/:0
+[     501ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8787/favicon.ico:0

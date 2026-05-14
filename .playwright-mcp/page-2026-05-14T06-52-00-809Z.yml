@@ -1,0 +1,43 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "⛓ SC Interactor" [level=1] [ref=e4]
+    - generic [ref=e5]:
+      - button "Contract" [ref=e6] [cursor=pointer]
+      - button "Utils" [ref=e7] [cursor=pointer]
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: Configuration
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: Private Key
+          - textbox "0x..." [ref=e14]
+        - generic [ref=e15]:
+          - generic [ref=e16]: RPC URL
+          - textbox "https://mainnet.infura.io/v3/..." [ref=e17]
+        - generic [ref=e18]:
+          - generic [ref=e19]: Contract Address (optional)
+          - textbox "0x..." [ref=e20]
+        - generic [ref=e21]:
+          - generic [ref=e22]: Contract ABI — paste to see functions instantly
+          - 'textbox "[{\"type\":\"function\",\"name\":\"balanceOf\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\"}],\"outputs\":[{\"type\":\"uint256\"}],\"stateMutability\":\"view\"}]" [ref=e23]'
+          - button "⟳ Load ABI" [ref=e25] [cursor=pointer]
+      - generic [ref=e26]:
+        - button "Connect Wallet" [ref=e27] [cursor=pointer]
+        - button "Disconnect" [ref=e28] [cursor=pointer]
+      - generic [ref=e29]: ⚡ Paste ABI to see functions instantly · RPC required for Read · Private key required for Write · Numbers passed as raw integers
+    - generic [ref=e30]:
+      - generic [ref=e31]: Transfer Native Token
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: Recipient Address
+          - textbox "0x..." [ref=e35]
+        - generic [ref=e36]:
+          - generic [ref=e37]: Amount
+          - textbox "0.01" [ref=e38]
+        - generic [ref=e39]:
+          - generic [ref=e40]: Unit
+          - combobox [ref=e41]:
+            - option "ETH / 18 dec" [selected]
+            - option "Gwei / 9 dec"
+            - option "Wei (raw)"
+        - button "Send ↗" [ref=e44] [cursor=pointer]

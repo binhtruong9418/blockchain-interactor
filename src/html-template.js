@@ -518,7 +518,7 @@ function buildCard(fn, mode) {
   var sig = safeName + '(' + params.map(function(p) { return (p.type || '?') + (p.name ? ' ' + p.name : ''); }).join(', ') + ')' + (outs ? ' → ' + outs : '');
 
   var html = '<div class="fc">';
-  html += '<div class="fc-hdr" onclick="toggleCard(\'' + id + '\')">';
+  html += '<div class="fc-hdr" onclick="toggleCard(\\'' + id + '\\')">';
   html += '<div><div class="fc-name">' + esc(safeName) + (isPayable ? ' <span class="tag t-pay">payable</span>' : '') + '</div>';
   html += '<div class="fc-sig">' + esc(sig) + '</div></div>';
   html += '<span class="fc-arr" id="' + id + '_arr">▼</span></div>';
@@ -536,7 +536,7 @@ function buildCard(fn, mode) {
   var callFn   = mode === 'read' ? 'doRead' : 'doWrite';
 
   html += '<div class="btn-row">';
-  html += '<button id="' + id + '_btn" style="' + btnStyle + '" onclick="' + callFn + '(\'' + safeName + '\',\'' + id + '\',' + params.length + ',' + (isPayable ? 1 : 0) + ')">' + btnLabel + '</button>';
+  html += '<button id="' + id + '_btn" style="' + btnStyle + '" onclick="' + callFn + '(\\'' + safeName + '\\',\\'' + id + '\\',' + params.length + ',' + (isPayable ? 1 : 0) + ')">' + btnLabel + '</button>';
   html += '</div>';
   html += '<div class="rbox" id="' + id + '_res"></div>';
   html += '</div></div>';
@@ -561,8 +561,8 @@ function buildParamInput(p, eid) {
     html += '<div class="input-row">';
     html += '<input type="text" id="' + eid + '" placeholder="0" />';
     html += '<div class="mul-btns">';
-    html += '<button type="button" class="mul-btn" onclick="mulInput(\'' + eid + '\',18)" title="multiply by 10^18">×10¹⁸</button>';
-    html += '<button type="button" class="mul-btn" onclick="mulInput(\'' + eid + '\',6)"  title="multiply by 10^6">×10⁶</button>';
+    html += '<button type="button" class="mul-btn" onclick="mulInput(\\'' + eid + '\\',18)" title="multiply by 10^18">×10¹⁸</button>';
+    html += '<button type="button" class="mul-btn" onclick="mulInput(\\'' + eid + '\\',6)"  title="multiply by 10^6">×10⁶</button>';
     html += '</div></div>';
     html += '<div style="font-size:10px;color:var(--muted);margin-top:2px">raw integer — ×10ⁿ to scale decimals</div>';
   } else {
@@ -701,9 +701,9 @@ async function doWrite(fnName, id, count, isPayable) {
   showRes(id, 'Sending transaction…', 'info');
   try {
     var tx = await _contract[fnName].apply(_contract, args);
-    showRes(id, 'TX: ' + tx.hash + '\nWaiting for confirmation…', 'info');
+    showRes(id, 'TX: ' + tx.hash + '\\nWaiting for confirmation…', 'info');
     var receipt = await tx.wait();
-    showRes(id, 'Confirmed block ' + receipt.blockNumber + '\nTX: ' + tx.hash, 'ok');
+    showRes(id, 'Confirmed block ' + receipt.blockNumber + '\\nTX: ' + tx.hash, 'ok');
     toast('Confirmed block ' + receipt.blockNumber, 'ok');
     refreshBal();
   } catch(e) { showRes(id, e.message, 'err'); toast('TX failed', 'err'); }
@@ -731,9 +731,9 @@ async function sendNative() {
   res.innerHTML = '<div class="rlbl">info</div>Sending…'; res.className = 'rbox show info';
   try {
     var tx = await _signer.sendTransaction({ to: to, value: value });
-    res.innerHTML = '<div class="rlbl">info</div>' + esc('TX: ' + tx.hash + '\nWaiting…');
+    res.innerHTML = '<div class="rlbl">info</div>' + esc('TX: ' + tx.hash + '\\nWaiting…');
     var receipt = await tx.wait();
-    res.innerHTML = '<div class="rlbl">ok</div>' + esc('Confirmed block ' + receipt.blockNumber + '\nTX: ' + tx.hash);
+    res.innerHTML = '<div class="rlbl">ok</div>' + esc('Confirmed block ' + receipt.blockNumber + '\\nTX: ' + tx.hash);
     res.className = 'rbox show ok';
     toast('Transfer confirmed block ' + receipt.blockNumber, 'ok');
     refreshBal();
@@ -804,7 +804,7 @@ function utilKeccak() {
     var bytes = type === 'hex' ? ethers.getBytes(input) : ethers.toUtf8Bytes(input);
     var hash  = ethers.keccak256(bytes);
     var sel   = hash.slice(0, 10);
-    setUtilOut('u-k256-out', hash + '\nSelector (first 4 bytes): ' + sel);
+    setUtilOut('u-k256-out', hash + '\\nSelector (first 4 bytes): ' + sel);
   } catch(e) { setUtilOut('u-k256-out', 'Error: ' + e.message); }
 }
 
@@ -845,7 +845,7 @@ function utilUnixToDate() {
   var unix = parseInt(document.getElementById('u-unix').value.trim());
   if (isNaN(unix)) return;
   var d = new Date(unix * 1000);
-  setUtilOut('u-ts-out', d.toISOString() + '\n' + d.toLocaleString());
+  setUtilOut('u-ts-out', d.toISOString() + '\\n' + d.toLocaleString());
 }
 function utilDateToUnix() {
   var val = document.getElementById('u-date').value;
