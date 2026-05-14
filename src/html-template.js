@@ -430,7 +430,7 @@ async function doConnect() {
   if (!rpc) return toast('RPC URL required', 'err');
   try {
     // Route through /rpc proxy to avoid CORS issues with private/internal RPC endpoints
-    var proxyUrl = '/rpc?target=' + encodeURIComponent(rpc);
+    var proxyUrl = window.location.origin + '/rpc?target=' + encodeURIComponent(rpc);
     _prov = new ethers.JsonRpcProvider(proxyUrl);
     if (pk) {
       _signer = new ethers.Wallet(pk, _prov);
