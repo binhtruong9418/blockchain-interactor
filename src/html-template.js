@@ -429,7 +429,9 @@ async function doConnect() {
   var abiS = document.getElementById('abi').value.trim();
   if (!rpc) return toast('RPC URL required', 'err');
   try {
-    _prov = new ethers.JsonRpcProvider(rpc);
+    // Route through /rpc proxy to avoid CORS issues with private/internal RPC endpoints
+    var proxyUrl = '/rpc?target=' + encodeURIComponent(rpc);
+    _prov = new ethers.JsonRpcProvider(proxyUrl);
     if (pk) {
       _signer = new ethers.Wallet(pk, _prov);
       _net    = await _prov.getNetwork();
