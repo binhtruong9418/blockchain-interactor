@@ -167,8 +167,11 @@ button.sm { padding: 4px 8px; font-size: 11px; font-weight: 600; }
       </div>
       <div class="fg span2">
         <label>Contract ABI — paste to see functions instantly</label>
-        <textarea id="abi" rows="4" placeholder='[{"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]' oninput="onAbiInput()" onpaste="setTimeout(onAbiInput,50)" onchange="onAbiInput()"></textarea>
-        <div id="abiStatus" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
+        <textarea id="abi" rows="4" placeholder='[{"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]' oninput="onAbiInput()" onpaste="setTimeout(onAbiInput,100)" onchange="onAbiInput()"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <button type="button" onclick="onAbiInput()" style="background:var(--purple);padding:5px 12px;font-size:12px">⟳ Load ABI</button>
+          <div id="abiStatus" style="font-size:11px;color:var(--muted)"></div>
+        </div>
       </div>
     </div>
     <div class="btn-row">
@@ -374,32 +377,48 @@ function onAbiInput() {
   var raw = document.getElementById('abi').value.trim();
   var statusEl = document.getElementById('abiStatus');
   if (!raw) { statusEl.textContent = ''; return; }
-  try {
-    var parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) { statusEl.textContent = '⚠ ABI must be a JSON array'; statusEl.style.color = 'var(--orange)'; return; }
 
-    // Normalize old ABI format: constant:true → stateMutability:'view'
-    var normalized = parsed.map(function(item) {
-      if (item.type === 'function' && !item.stateMutability) {
-        item.stateMutability = item.constant ? 'view' : 'nonpayable';
-      }
-      return item;
-    });
+  // Step 1: parse JSON
+  var parsed;
+  try { parsed = JSON.parse(raw); }
+  catch(e) { setStatus('✗ JSON error: ' + e.message, 'var(--red)'); return; }
 
-    var fnCount = normalized.filter(function(x) { return x.type === 'function'; }).length;
-    if (!fnCount) { statusEl.textContent = '⚠ No functions found in ABI'; statusEl.style.color = 'var(--orange)'; return; }
+  if (!Array.isArray(parsed)) { setStatus('⚠ ABI must be a JSON array', 'var(--orange)'); return; }
 
-    _abi = normalized;
+  // Step 2: normalize — old format uses constant:true instead of stateMutability
+  var normalized = parsed.map(function(item) {
+    if (!item || typeof item !== 'object') return item;
+    if (item.type === 'function' && !item.stateMutability) {
+      item.stateMutability = item.constant ? 'view' : 'nonpayable';
+    }
+    return item;
+  });
+
+  // Only count named functions (skip receive/fallback which have no name)
+  var fns = normalized.filter(function(x) { return x.type === 'function' && x.name; });
+  if (!fns.length) { setStatus('⚠ No callable functions found in ABI', 'var(--orange)'); return; }
+
+  _abi = normalized;
+
+  // Step 3: wire contract if already connected
+  if (_prov) {
     var addr = document.getElementById('addr').value.trim();
-    if (_prov && addr) _contract = new ethers.Contract(addr, _abi, _signer || _prov);
-    renderFns(_abi);
-
-    statusEl.textContent = '✓ ' + fnCount + ' function' + (fnCount > 1 ? 's' : '') + ' loaded';
-    statusEl.style.color = 'var(--green)';
-  } catch(e) {
-    statusEl.textContent = '✗ Invalid JSON: ' + e.message;
-    statusEl.style.color = 'var(--red)';
+    if (addr) {
+      try { _contract = new ethers.Contract(addr, _abi, _signer || _prov); }
+      catch(e) { /* ethers may not be loaded yet — will wire on Connect */ }
+    }
   }
+
+  // Step 4: render (separate try so JSON errors don't mask render errors)
+  try {
+    renderFns(normalized);
+    setStatus('✓ ' + fns.length + ' functions loaded', 'var(--green)');
+  } catch(e) {
+    setStatus('✗ Render error: ' + e.message, 'var(--red)');
+    console.error('ABI render error:', e);
+  }
+
+  function setStatus(msg, color) { statusEl.textContent = msg; statusEl.style.color = color; }
 }
 
 // ── Connect / Disconnect ─────────────────────────────────────────────────────
@@ -481,7 +500,8 @@ function copyOut(el) {
 
 // ── Render ABI functions ─────────────────────────────────────────────────────
 function renderFns(abi) {
-  var fns    = abi.filter(function(x) { return x.type === 'function'; });
+  // Only render named functions (skip receive/fallback)
+  var fns    = abi.filter(function(x) { return x.type === 'function' && x.name; });
   var reads  = fns.filter(function(f) { return f.stateMutability === 'view' || f.stateMutability === 'pure'; });
   var writes = fns.filter(function(f) { return f.stateMutability === 'nonpayable' || f.stateMutability === 'payable'; });
   document.getElementById('readFns').innerHTML  = reads.length  ? reads.map(function(f)  { return buildCard(f, 'read');  }).join('') : '<div class="empty">No view/pure functions</div>';
@@ -490,15 +510,16 @@ function renderFns(abi) {
 }
 
 function buildCard(fn, mode) {
-  var id   = mode + '_' + fn.name + '_' + Math.random().toString(36).slice(2,7);
+  var safeName = fn.name || 'unknown';
+  var id   = mode + '_' + safeName + '_' + Math.random().toString(36).slice(2,7);
   var params = fn.inputs || [];
-  var outs   = (fn.outputs || []).map(function(o) { return o.type; }).join(', ');
+  var outs   = (fn.outputs || []).map(function(o) { return o && o.type ? o.type : '?'; }).join(', ');
   var isPayable = fn.stateMutability === 'payable';
-  var sig = fn.name + '(' + params.map(function(p) { return p.type + (p.name ? ' ' + p.name : ''); }).join(', ') + ')' + (outs ? ' → ' + outs : '');
+  var sig = safeName + '(' + params.map(function(p) { return (p.type || '?') + (p.name ? ' ' + p.name : ''); }).join(', ') + ')' + (outs ? ' → ' + outs : '');
 
   var html = '<div class="fc">';
   html += '<div class="fc-hdr" onclick="toggleCard(\'' + id + '\')">';
-  html += '<div><div class="fc-name">' + esc(fn.name) + (isPayable ? ' <span class="tag t-pay">payable</span>' : '') + '</div>';
+  html += '<div><div class="fc-name">' + esc(safeName) + (isPayable ? ' <span class="tag t-pay">payable</span>' : '') + '</div>';
   html += '<div class="fc-sig">' + esc(sig) + '</div></div>';
   html += '<span class="fc-arr" id="' + id + '_arr">▼</span></div>';
   html += '<div class="fc-body" id="' + id + '_body">';
@@ -515,7 +536,7 @@ function buildCard(fn, mode) {
   var callFn   = mode === 'read' ? 'doRead' : 'doWrite';
 
   html += '<div class="btn-row">';
-  html += '<button id="' + id + '_btn" style="' + btnStyle + '" onclick="' + callFn + '(\'' + fn.name + '\',\'' + id + '\',' + params.length + ',' + (isPayable ? 1 : 0) + ')">' + btnLabel + '</button>';
+  html += '<button id="' + id + '_btn" style="' + btnStyle + '" onclick="' + callFn + '(\'' + safeName + '\',\'' + id + '\',' + params.length + ',' + (isPayable ? 1 : 0) + ')">' + btnLabel + '</button>';
   html += '</div>';
   html += '<div class="rbox" id="' + id + '_res"></div>';
   html += '</div></div>';
@@ -523,20 +544,20 @@ function buildCard(fn, mode) {
 }
 
 function buildParamInput(p, eid) {
-  var isArray   = p.type.indexOf('[') !== -1;
-  var isTuple   = p.type.indexOf('tuple') === 0;
-  var isBool    = p.type === 'bool';
-  var isNumeric = !isArray && !isTuple && (p.type.indexOf('uint') === 0 || p.type.indexOf('int') === 0);
-  var label = (p.name || 'param') + ' <span class="tbadge">' + esc(p.type) + ((isArray || isTuple) ? ' JSON' : '') + '</span>';
+  var pType = (p && p.type) ? p.type : 'bytes';  // fallback if type missing
+  var isArray   = pType.indexOf('[') !== -1;
+  var isTuple   = pType.indexOf('tuple') === 0;
+  var isBool    = pType === 'bool';
+  var isNumeric = !isArray && !isTuple && (pType.indexOf('uint') === 0 || pType.indexOf('int') === 0);
+  var label = ((p && p.name) || 'param') + ' <span class="tbadge">' + esc(pType) + ((isArray || isTuple) ? ' JSON' : '') + '</span>';
 
   var html = '<div class="pr"><div class="plbl">' + label + '</div>';
 
   if (isBool) {
     html += '<select id="' + eid + '"><option value="true">true</option><option value="false">false</option></select>';
   } else if (isArray || isTuple) {
-    html += '<textarea id="' + eid + '" rows="2" placeholder="' + esc(jsonHint(p.type)) + '"></textarea>';
+    html += '<textarea id="' + eid + '" rows="2" placeholder="' + esc(jsonHint(pType)) + '"></textarea>';
   } else if (isNumeric) {
-    // numeric: raw input + ×10^N buttons
     html += '<div class="input-row">';
     html += '<input type="text" id="' + eid + '" placeholder="0" />';
     html += '<div class="mul-btns">';
@@ -545,7 +566,7 @@ function buildParamInput(p, eid) {
     html += '</div></div>';
     html += '<div style="font-size:10px;color:var(--muted);margin-top:2px">raw integer — ×10ⁿ to scale decimals</div>';
   } else {
-    html += '<input type="text" id="' + eid + '" placeholder="' + esc(inputHint(p.type)) + '" />';
+    html += '<input type="text" id="' + eid + '" placeholder="' + esc(inputHint(pType)) + '" />';
   }
 
   html += '</div>';
