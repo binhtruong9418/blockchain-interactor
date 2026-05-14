@@ -167,7 +167,8 @@ button.sm { padding: 4px 8px; font-size: 11px; font-weight: 600; }
       </div>
       <div class="fg span2">
         <label>Contract ABI — paste to see functions instantly</label>
-        <textarea id="abi" rows="4" placeholder='[{"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]' oninput="onAbiInput()"></textarea>
+        <textarea id="abi" rows="4" placeholder='[{"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]' oninput="onAbiInput()" onpaste="setTimeout(onAbiInput,50)" onchange="onAbiInput()"></textarea>
+        <div id="abiStatus" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
       </div>
     </div>
     <div class="btn-row">
@@ -371,15 +372,34 @@ function switchTab(name) {
 // ── Auto-parse ABI on input ───────────────────────────────────────────────────
 function onAbiInput() {
   var raw = document.getElementById('abi').value.trim();
-  if (!raw) return;
+  var statusEl = document.getElementById('abiStatus');
+  if (!raw) { statusEl.textContent = ''; return; }
   try {
     var parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || !parsed.some(function(x) { return x.type === 'function'; })) return;
-    _abi = parsed;
+    if (!Array.isArray(parsed)) { statusEl.textContent = '⚠ ABI must be a JSON array'; statusEl.style.color = 'var(--orange)'; return; }
+
+    // Normalize old ABI format: constant:true → stateMutability:'view'
+    var normalized = parsed.map(function(item) {
+      if (item.type === 'function' && !item.stateMutability) {
+        item.stateMutability = item.constant ? 'view' : 'nonpayable';
+      }
+      return item;
+    });
+
+    var fnCount = normalized.filter(function(x) { return x.type === 'function'; }).length;
+    if (!fnCount) { statusEl.textContent = '⚠ No functions found in ABI'; statusEl.style.color = 'var(--orange)'; return; }
+
+    _abi = normalized;
     var addr = document.getElementById('addr').value.trim();
     if (_prov && addr) _contract = new ethers.Contract(addr, _abi, _signer || _prov);
     renderFns(_abi);
-  } catch(e) { /* still typing */ }
+
+    statusEl.textContent = '✓ ' + fnCount + ' function' + (fnCount > 1 ? 's' : '') + ' loaded';
+    statusEl.style.color = 'var(--green)';
+  } catch(e) {
+    statusEl.textContent = '✗ Invalid JSON: ' + e.message;
+    statusEl.style.color = 'var(--red)';
+  }
 }
 
 // ── Connect / Disconnect ─────────────────────────────────────────────────────
